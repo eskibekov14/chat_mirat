@@ -1,8 +1,8 @@
 version: '3.9'
 services:
 
-  chat-demo:
-    image: chat/demo
+  chatproject:
+    image: chatproject
     ports:
       - "7070:7070"
 
