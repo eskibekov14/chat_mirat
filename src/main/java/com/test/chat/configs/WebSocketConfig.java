@@ -19,7 +19,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").withSockJS();
+        registry.addEndpoint("/ws2")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
         // Этот метод добавляет конечную точку "/ws" для подключения к WebSocket серверу и включает поддержку SockJS,
         // что позволяет использовать WebSocket в браузерах, которые не поддерживают его напрямую.
     }

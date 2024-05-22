@@ -26,7 +26,9 @@ public class SecurityConfig{
     private  AuthenticationProvider authenticationProvider;
 
     private static final String[] white_url_list = {
-            "/prime-auth/**"
+            "/prime-auth/**",
+            "/home/**",
+            "/**"
     };
 
     @Bean

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Dialog</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .chat-dialog {
+            max-height: 80vh; /* Максимальная высота диалогового окна */
+            overflow-y: auto; /* Включаем вертикальную прокрутку */
+            width: 400px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f2f2f2;
+            border-radius: 5px;
+        }
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+            outline: none;
+        }
+        .chat-input button {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            border-left: none;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            outline: none;
+        }
+        .chat-input button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<input type="hidden" id="chatId">
+<input type="hidden" id="chatTopic">
+<div class="chat-dialog">
+    <div class="chat-messages" id="chatMessages">
+        <!-- Messages will appear here -->
+    </div>
+    <div class="chat-input">
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button id="send-message">Send</button>
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.2/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+    const userEmail = urlParams.get('userEmail');
+    const currentEmail = urlParams.get('currentEmail');
+    getChatRoom();
+    function getChatRoom(){
+        const request = new XMLHttpRequest();
+        const  token = localStorage.getItem('authToken');
+        request.onreadystatechange = function() {
+            if (this.readyState === request.DONE && this.status == 200) {
+                let chatRoom = JSON.parse(request.responseText);
+                document.getElementById('chatId').value = chatRoom.id;
+                document.getElementById('chatTopic').value = chatRoom.chatTopic;
+                loadMessages();
+                webSocketConnection();
+            }
+        };
+        request.open("GET", `/chat-room/personal/${userEmail}`);
+        if(token){
+            request.setRequestHeader("Authorization","Bearer " + token);
+        }
+        request.send();
+    }
+    function loadMessages(){
+        const request = new XMLHttpRequest();
+        const  token = localStorage.getItem('authToken');
+        const chatId = document.getElementById('chatId').value;
+        request.onreadystatechange = function() {
+            if (this.readyState === request.DONE && this.status == 200) {
+                let messages = JSON.parse(request.responseText);
+                for(let i = 0; i < messages.length;i++){
+                    const chatMessages = document.getElementById('chatMessages');
+                    const messageText = messages[i].messageText + ' by ' + messages[i].sender.fullName;
+                    const messageElem = document.createElement('div');
+                    messageElem.classList.add('message');
+                    messageElem.textContent = messageText;
+                    chatMessages.appendChild(messageElem);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            }
+        };
+        request.open("GET", `/chat-message/`+chatId);
+        if(token){
+            request.setRequestHeader("Authorization","Bearer " + token);
+        }
+        request.send();
+    }
+
+    let stompClient = null;
+    function webSocketConnection(){
+        let chatTopic = document.getElementById('chatTopic').value;
+        const  token = localStorage.getItem('authToken');
+        const header = {
+            "Authorization" : "Bearer " + token
+        };
+        let socket = new SockJS('/ws2');
+        stompClient = Stomp.over(socket);
+        stompClient.connect(header, function (frame) {
+            console.log('Connected: ' + frame);
+            stompClient.subscribe('/topic/messages/' + chatTopic, function (message){
+                let newMessage = JSON.parse(message.body);
+                const chatMessages = document.getElementById('chatMessages');
+                const messageText = newMessage.messageText + ' by ' + newMessage.sender.fullName;
+                const messageElem = document.createElement('div');
+                messageElem.classList.add('message');
+                messageElem.textContent = messageText;
+                chatMessages.appendChild(messageElem);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            })
+        });
+    }
+    document.getElementById('send-message').addEventListener('click',sendMessage);
+    function sendMessage() {
+        const messageInput = document.getElementById('messageInput');
+        const  token = localStorage.getItem('authToken');
+        const messageText = messageInput.value;
+        if (messageText.trim() === '') return;
+        let message = {
+            "messageText" : messageText,
+            "senderEmail" : currentEmail,
+            "receiverEmail" : userEmail
+        };
+        let chatTopic = document.getElementById('chatTopic').value;
+        let header = {
+            'Authorization' : 'Bearer ' + token
+        };
+        stompClient.send('/app/chat/' + chatTopic, {}, JSON.stringify(message));
+        messageInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+</script>
+</body>
+</html>

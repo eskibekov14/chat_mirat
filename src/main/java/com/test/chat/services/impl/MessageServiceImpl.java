@@ -8,6 +8,7 @@ import com.test.chat.modelsDto.ChatRoomDto;
 import com.test.chat.modelsDto.MessageDto;
 import com.test.chat.repositories.ChatRoomRepository;
 import com.test.chat.repositories.MessageRepository;
+import com.test.chat.repositories.UsersRepository;
 import com.test.chat.services.ChatRoomService;
 import com.test.chat.services.MessageService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class MessageServiceImpl implements MessageService {
     private final ChatRoomRepository chatRoomRepository;
     private final MessageMapper messageMapper;
     private final ChatRoomService chatRoomService;
+    private final UsersRepository usersRepository;
 
     @Override
     public MessageDto sendMessage(String chatTopic, RequestMessage message) {
@@ -33,7 +35,7 @@ public class MessageServiceImpl implements MessageService {
         ChatRoom chatRoom = chatRoomRepository.findAllByChatTopicEquals(chatTopic.trim());
         if(chatRoom!=null) {
             Message newMessage = Message.builder()
-                    .sender(chatRoom.getCreator())
+                    .sender(usersRepository.findAllByEmail(message.getSenderEmail()))
                     .messageText(message.getMessageText())
                     .chatRoom(chatRoom)
                     .build();
